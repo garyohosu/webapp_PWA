@@ -6,7 +6,11 @@ export class Router {
   constructor() {
     // ハッシュ変更イベントをリッスン
     window.addEventListener('hashchange', () => this.handleRoute());
-    window.addEventListener('load', () => this.handleRoute());
+  }
+
+  // ルート登録後に呼び出して初期ルートを処理する
+  start(): void {
+    this.handleRoute();
   }
 
   // ルート登録

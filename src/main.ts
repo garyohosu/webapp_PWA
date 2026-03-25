@@ -12,6 +12,7 @@ class App {
     this.appElement = document.querySelector<HTMLDivElement>('#app')!;
     this.router = new Router();
     this.setupRoutes();
+    this.router.start();
     this.initializeDarkMode();
     this.registerServiceWorker();
   }
