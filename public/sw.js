@@ -1,20 +1,15 @@
 // Service Worker - App Shellキャッシュ戦略
-const VERSION = 'v1.0.1';
-const CACHE_NAME = 'pwa-cache-v1';
-const APP_SHELL = [
-  '/',
-  '/index.html', 
-  '/src/main.ts',
-  '/src/style.css',
-  '/src/router.ts',
-  '/src/pages/home.ts',
-  '/src/pages/settings.ts',
-  '/manifest.webmanifest'
-];
+const VERSION = 'v1.0.2';
+const CACHE_NAME = 'pwa-cache-v2';
 
 // インストール時：App Shellをキャッシュ
 self.addEventListener('install', (event) => {
   console.log('Service Worker: Installing...', VERSION);
+  const base = self.registration.scope;
+  const APP_SHELL = [
+    base,
+    base + 'manifest.webmanifest',
+  ];
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -50,22 +45,14 @@ self.addEventListener('activate', (event) => {
 
 // フェッチ時：Cache Firstストラテジー
 self.addEventListener('fetch', (event) => {
-  console.log('Service Worker: Fetching', event.request.url);
-  
   event.respondWith(
     caches.match(event.request)
       .then((cachedResponse) => {
-        // キャッシュがあれば返す
         if (cachedResponse) {
-          console.log('Service Worker: Cache hit', event.request.url);
           return cachedResponse;
         }
-        
-        // キャッシュがなければネットワークから取得
-        console.log('Service Worker: Cache miss, fetching', event.request.url);
         return fetch(event.request)
           .then((response) => {
-            // レスポンスが有効な場合のみキャッシュ
             if (response && response.status === 200 && response.type === 'basic') {
               const responseClone = response.clone();
               caches.open(CACHE_NAME)
@@ -76,10 +63,8 @@ self.addEventListener('fetch', (event) => {
             return response;
           })
           .catch(() => {
-            // ネットワークエラー時のフォールバック
-            console.log('Service Worker: Network failed, showing offline page');
             if (event.request.mode === 'navigate') {
-              return caches.match('/index.html');
+              return caches.match(self.registration.scope);
             }
           });
       })

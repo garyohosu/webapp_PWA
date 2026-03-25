@@ -36,7 +36,7 @@ class App {
   private registerServiceWorker(): void {
     if ('serviceWorker' in navigator) {
       addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then((reg) => {
+        navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).then((reg) => {
           reg.addEventListener('updatefound', () => {
             const nw = reg.installing; if (!nw) return;
             nw.addEventListener('statechange', () => {
