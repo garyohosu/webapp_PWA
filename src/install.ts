@@ -12,11 +12,17 @@ type InstallStatus = {
   hasServiceWorkerSupport: boolean;
   hasServiceWorkerController: boolean;
   serviceWorkerScope: string | null;
+  hasUserInteraction: boolean;
+  engagementSeconds: number;
   lastPromptOutcome: 'accepted' | 'dismissed' | null;
 };
 
 let deferredInstallPrompt: BeforeInstallPromptEvent | null = null;
 let listenersBound = false;
+let visibleSince: number | null = null;
+
+const ENGAGEMENT_SECONDS_KEY = 'pwa-engagement-seconds';
+const ENGAGEMENT_INTERACTION_KEY = 'pwa-engagement-interacted';
 
 const status: InstallStatus = {
   canPromptInstall: false,
@@ -27,8 +33,48 @@ const status: InstallStatus = {
   hasServiceWorkerSupport: false,
   hasServiceWorkerController: false,
   serviceWorkerScope: null,
+  hasUserInteraction: false,
+  engagementSeconds: 0,
   lastPromptOutcome: null,
 };
+
+function readEngagementSeconds(): number {
+  const rawValue = localStorage.getItem(ENGAGEMENT_SECONDS_KEY);
+  const parsedValue = Number(rawValue ?? '0');
+  return Number.isFinite(parsedValue) ? Math.max(0, parsedValue) : 0;
+}
+
+function writeEngagementSeconds(seconds: number): void {
+  localStorage.setItem(ENGAGEMENT_SECONDS_KEY, String(Math.max(0, seconds)));
+}
+
+function persistVisibleDuration(): void {
+  if (visibleSince === null) {
+    return;
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - visibleSince) / 1000));
+  if (elapsedSeconds > 0) {
+    const updatedSeconds = readEngagementSeconds() + elapsedSeconds;
+    writeEngagementSeconds(updatedSeconds);
+  }
+
+  visibleSince = null;
+}
+
+function startVisibleTimer(): void {
+  if (document.visibilityState === 'visible' && visibleSince === null) {
+    visibleSince = Date.now();
+  }
+}
+
+function markUserInteraction(): void {
+  if (!status.hasUserInteraction) {
+    localStorage.setItem(ENGAGEMENT_INTERACTION_KEY, 'true');
+    status.hasUserInteraction = true;
+    syncInstallUi();
+  }
+}
 
 function isStandaloneMode(): boolean {
   const mediaQuery = window.matchMedia('(display-mode: standalone)');
@@ -44,6 +90,11 @@ function refreshStatus(): void {
   status.hasManifestLink = Boolean(document.querySelector('link[rel="manifest"]'));
   status.hasServiceWorkerSupport = 'serviceWorker' in navigator;
   status.hasServiceWorkerController = Boolean(navigator.serviceWorker?.controller);
+  status.hasUserInteraction = localStorage.getItem(ENGAGEMENT_INTERACTION_KEY) === 'true';
+  status.engagementSeconds = readEngagementSeconds()
+    + (visibleSince !== null && document.visibilityState === 'visible'
+      ? Math.floor((Date.now() - visibleSince) / 1000)
+      : 0);
 }
 
 function renderInstallDiagnostics(): void {
@@ -70,6 +121,9 @@ function renderInstallDiagnostics(): void {
   } else if (!status.hasServiceWorkerController) {
     headline = 'Service Worker の制御待ち';
     detail = '一度再読み込みしてから install 可否を再確認してください。';
+  } else if (!status.hasUserInteraction || status.engagementSeconds < 30) {
+    headline = 'Chrome の利用条件を蓄積中';
+    detail = '画面を1回タップして、30秒以上このページを開いたままにしてください。';
   } else {
     headline = 'Chrome の install 判定待ち';
     detail = 'install prompt が未取得です。下の診断項目を確認してください。';
@@ -89,6 +143,8 @@ function renderInstallDiagnostics(): void {
     ['Manifest', status.hasManifestLink, manifestHref],
     ['Service Worker 対応', status.hasServiceWorkerSupport, status.hasServiceWorkerSupport ? 'supported' : 'unsupported'],
     ['Service Worker 制御', status.hasServiceWorkerController, status.serviceWorkerScope ?? '未制御'],
+    ['Tap / click 済み', status.hasUserInteraction, status.hasUserInteraction ? '済み' : '未操作'],
+    ['30秒閲覧', status.engagementSeconds >= 30, `${status.engagementSeconds}s / 30s`],
     ['install prompt', status.canPromptInstall, status.lastPromptOutcome ? `last: ${status.lastPromptOutcome}` : '未取得'],
     ['display-mode standalone', status.isStandalone, status.isStandalone ? 'active' : 'browser'],
   ];
@@ -115,6 +171,16 @@ export function initializeInstallSupport(): void {
 
   listenersBound = true;
   refreshStatus();
+  startVisibleTimer();
+
+  const markInteractionOnce = () => {
+    markUserInteraction();
+    window.removeEventListener('pointerdown', markInteractionOnce);
+    window.removeEventListener('keydown', markInteractionOnce);
+  };
+
+  window.addEventListener('pointerdown', markInteractionOnce);
+  window.addEventListener('keydown', markInteractionOnce);
 
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
@@ -134,6 +200,23 @@ export function initializeInstallSupport(): void {
   window.matchMedia('(display-mode: standalone)').addEventListener('change', () => {
     syncInstallUi();
   });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      persistVisibleDuration();
+    } else {
+      startVisibleTimer();
+    }
+    syncInstallUi();
+  });
+
+  window.addEventListener('pagehide', () => {
+    persistVisibleDuration();
+  });
+
+  window.setInterval(() => {
+    syncInstallUi();
+  }, 1000);
 
   navigator.serviceWorker?.ready
     .then((registration) => {
