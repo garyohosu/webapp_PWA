@@ -108,6 +108,17 @@ body {
   transform: translateY(-1px);
 }
 
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.btn-block {
+  display: block;
+  width: 100%;
+}
+
 .btn-back {
   background: rgba(255, 255, 255, 0.2);
   color: white;
@@ -132,6 +143,34 @@ body {
 .welcome-card h2 {
   color: var(--primary-color);
   margin-bottom: 0.5rem;
+}
+
+.install-card {
+  background-color: var(--surface-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+}
+
+.install-card h2 {
+  color: var(--primary-color);
+  margin-bottom: 0.75rem;
+}
+
+.install-status {
+  margin-bottom: 1rem;
+}
+
+.install-status strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.install-status p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
 }
 
 /* フィーチャー */
@@ -224,6 +263,44 @@ body {
   color: var(--text-secondary);
   font-size: 0.9rem;
   margin-bottom: 0.25rem;
+}
+
+.install-checks {
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.install-check-item {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background-color: var(--background-color);
+}
+
+.install-check-item span:first-child {
+  font-weight: 600;
+}
+
+.install-check-item small {
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.install-check-state {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.check-ok {
+  color: var(--success-color);
+}
+
+.check-ng {
+  color: #dc2626;
 }
 
 /* レスポンシブ */

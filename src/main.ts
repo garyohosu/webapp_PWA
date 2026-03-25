@@ -1,4 +1,5 @@
 import './style.css';
+import { initializeInstallSupport, mountInstallDiagnostics, promptInstall } from './install';
 import { Router } from './router';
 import { renderHome } from './pages/home';
 import { renderSettings } from './pages/settings';
@@ -11,6 +12,7 @@ class App {
   constructor() {
     this.appElement = document.querySelector<HTMLDivElement>('#app')!;
     this.router = new Router();
+    initializeInstallSupport();
     this.setupRoutes();
     this.router.start();
     this.initializeDarkMode();
@@ -21,6 +23,7 @@ class App {
     // ルート登録
     this.router.register('home', () => {
       this.appElement.innerHTML = renderHome();
+      mountInstallDiagnostics();
     });
 
     this.router.register('settings', () => {
@@ -41,7 +44,7 @@ class App {
             const nw = reg.installing; if (!nw) return;
             nw.addEventListener('statechange', () => {
               if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                if (confirm('新しいバージョンがあります。今すぐ更新しますか？')) {
+                if (confirm('アプリ更新があります。今すぐ反映しますか？')) {
                   nw.postMessage('SKIP_WAITING');
                 }
               }
@@ -55,4 +58,8 @@ class App {
 }
 
 // アプリケーション開始
+(window as Window & typeof globalThis & { promptInstallApp?: () => void }).promptInstallApp = () => {
+  void promptInstall();
+};
+
 new App();

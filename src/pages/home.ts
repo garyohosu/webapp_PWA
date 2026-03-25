@@ -25,9 +25,18 @@ export function renderHome(): string {
           
           <div class="feature-item">
             <h3>📦 インストール可能</h3>
-            <p>ホーム画面に追加可能</p>
+            <p>条件がそろえば Chrome から追加可能</p>
           </div>
         </div>
+
+        <section class="install-card">
+          <h2>インストール診断</h2>
+          <div class="install-status" data-install-status></div>
+          <button class="btn btn-primary btn-block" data-install-button onclick="promptInstallApp()">
+            アプリをインストール
+          </button>
+          <ul class="install-checks" data-install-checks></ul>
+        </section>
         
         <button class="btn btn-primary" onclick="location.hash='settings'">
           設定画面へ
