@@ -2,17 +2,47 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const server = http.createServer((req, res) => {
-  let filePath = path.join(__dirname, 'dist', req.url === '/' ? 'index.html' : req.url);
-  
-  // ハッシュルーティング対応：存在しないパスはindex.htmlを返す
-  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-    filePath = path.join(__dirname, 'dist', 'index.html');
+function normalizeBase(base) {
+  if (!base || base === '/') {
+    return '/';
   }
-  
+
+  return `/${base.replace(/^\/+|\/+$/g, '')}/`;
+}
+
+function stripBase(pathname, base) {
+  if (base !== '/' && pathname.startsWith(base)) {
+    return pathname.slice(base.length - 1) || '/';
+  }
+
+  return pathname;
+}
+
+const BASE = normalizeBase(process.env.VITE_BASE || '/');
+const DIST_DIR = path.join(__dirname, 'dist');
+
+const server = http.createServer((req, res) => {
+  const requestUrl = new URL(req.url, 'http://localhost');
+  const normalizedPath = stripBase(requestUrl.pathname, BASE);
+  const relativePath = normalizedPath === '/' ? 'index.html' : normalizedPath.replace(/^\/+/, '');
+  let filePath = path.join(DIST_DIR, relativePath);
+  const hasExtension = path.extname(normalizedPath) !== '';
+
+  if (!fs.existsSync(filePath)) {
+    if (hasExtension) {
+      res.writeHead(404);
+      res.end('File not found');
+      return;
+    }
+
+    filePath = path.join(DIST_DIR, 'index.html');
+  } else if (fs.statSync(filePath).isDirectory()) {
+    filePath = path.join(DIST_DIR, 'index.html');
+  }
+
   const extname = path.extname(filePath);
   let contentType = 'text/html';
-  
+
   switch (extname) {
     case '.js': contentType = 'text/javascript'; break;
     case '.css': contentType = 'text/css'; break;
@@ -23,10 +53,10 @@ const server = http.createServer((req, res) => {
   }
   
   // Service Workerに Cache-Control: no-store を設定
-  if (req.url === '/sw.js') {
+  if (normalizedPath === '/sw.js') {
     res.setHeader('Cache-Control', 'no-store');
   }
-  
+
   fs.readFile(filePath, (err, content) => {
     if (err) {
       res.writeHead(404);
